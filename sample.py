@@ -19,7 +19,7 @@ MAX_PLAYERS = 4          # Maximum players allowed in a single game
 # ---------------------------------------------------------------------------------------------------------------------------------
 # We'll keep a list of all connected clients (connection, address, player_id)
 connected_clients = []
-clients_lock = threading.Lock()
+clients_lock = threading.RLock()
 
 
 def parse_args():
@@ -54,17 +54,14 @@ game_state_lock = threading.Lock()
 # ------------------------------------------------------------------------------------------------------------------
 
 def broadcast_message(message):
-    """
-    Send a JSON message to every connected client.
-    """
-    data = (json.dumps(message) + '\n').encode()
+    global clients_lock
+    print("[DEBUG] broadcast_message() called with message:") 
+    print(message)
     with clients_lock:
+        print(f"[DEBUG] Currently {len(connected_clients)} connected clients")
         for client_conn, _, _ in connected_clients:
-            try:
-                client_conn.sendall(data)
-            except BrokenPipeError:
-                # If a client disconnected unexpectedly, just ignore it here.
-                pass
+            print("[DEBUG] Sending message to a client")
+            send_message_to_client(client_conn, message)
 
 
 def send_message_to_client(client_conn, message):
@@ -82,6 +79,7 @@ def send_message_to_client(client_conn, message):
 # -----------------------------------------------------------------------------------------------------------------------------
 
 def start_game():
+    print("[DEBUG] start_game() called.") 
     """
     Shuffle the cards, set up locks, pick who goes first, and let everyone know the game is on!
     """
@@ -121,7 +119,10 @@ def send_turn_notification():
     """
     Tell everyone whose turn it is now.
     """
+    print("[DEBUG] send_turn_notification() called.") 
+
     with game_state_lock:
+        print("[DEBUG] send_turn_notifications() withGame stateLOCK") 
         player_id = connected_clients[current_player_index][2]
     broadcast_message({
         "type": "YOUR_TURN",
@@ -141,7 +142,8 @@ def process_flip_request(player_id, card_index, client_conn):
       - Handle matches or mismatches, update scores or change turns
     """
     global first_flipped_card, current_player_index
-
+    is_next_turn = False
+    pidx = 0
     with game_state_lock:
         # 1) Make sure it's really this player's turn
         if connected_clients[current_player_index][2] != player_id:
@@ -186,19 +188,25 @@ def process_flip_request(player_id, card_index, client_conn):
                 # Then flip them back down
                 faceup_cards[prev_index] = False
                 faceup_cards[card_index] = False
-                broadcast_message({"type": "HIDE_CARDS", "cards": [prev_index, card_index]})
-                # Move on to the next player's turn
-                current_player_index = (current_player_index + 1) % len(connected_clients)
-                send_turn_notification()
+                is_next_turn = True
+                
 
             # Clean up locks and reset for the next turn
             per_card_locks[prev_index].release()
             per_card_locks[card_index].release()
+            pidx = prev_index
             first_flipped_card = None
 
             # If every pair is matched, the game is then over
             if all(matched_cards):
                 broadcast_message({"type": "GAME_OVER", "scores": player_scores})
+    
+    if (is_next_turn):
+        cidx = card_index
+        broadcast_message({"type": "HIDE_CARDS", "cards": [pidx, cidx]})
+        # Move on to the next player's turn
+        current_player_index = (current_player_index + 1) % len(connected_clients)
+        send_turn_notification()
 
 # -----------------------------------------------------------------------------------------------------
 #  New Client Handler                

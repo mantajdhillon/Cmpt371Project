@@ -1,6 +1,9 @@
 import pygame
 import os
 import random
+import socket
+import threading
+import json
 
 pygame.init()
 
@@ -19,11 +22,11 @@ screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
 
 #  setup the window and it's parameters
 pygame.display.set_caption('<INSERT GAME NAME, mainGame.py>')
-gameIcon = pygame.image.load('frontend/images/icon.png')
+gameIcon = pygame.image.load('assets/icon.png')
 pygame.display.set_icon(gameIcon)
 
 #  setup background and it's parameters
-bgImage = pygame.image.load('frontend/images/background.png')
+bgImage = pygame.image.load('assets/background.png')
 bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
 bgImageRectangle = bgImage.get_rect()
 
@@ -32,14 +35,15 @@ cards = []
 cardImages = []
 cardRects = []
 
-for card in os.listdir('frontend/images/cardArt/'):
+for card in os.listdir('images/cardArt/'):
     cards.append(card.split('.')[0]) # removing extension
 cardsCopy = cards.copy()
 cards.extend(cardsCopy) # duplicating cards for pairs
 cardsCopy.clear()
+random.shuffle(cards)
 
 for card in cards:
-    cardImage = pygame.image.load(f'frontend/images/cardArt/{card}.png')
+    cardImage = pygame.image.load(f'images/cardArt/{card}.png')
     cardImage = pygame.transform.scale(cardImage, (cardImgSize, cardImgSize))
     cardRect = cardImage.get_rect()
     cardImages.append(cardImage)

@@ -5,21 +5,23 @@ import socket
 import threading
 import json
 
-SERVER_HOST = 'localhost'  # or IP address of the backend server
+SERVER_HOST = 'localhost'
 SERVER_PORT = 12345
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((SERVER_HOST, SERVER_PORT))
 recv_buffer = ''
-player_id = None  # Will be set after receiving "WELCOME"
+player_id = None 
 my_turn = False
 game_started = False
 
 state_lock = threading.Lock()
 
-revealed_identities = [None] * 16  # Shows revealed identities, or None
-matched_cards = [False] * 16       # True if card is matched
+# save cards revealed and matched
+revealed_identities = [None] * 16  
+matched_cards = [False] * 16       
 
+# listening to server messages and responses, run on a thread
 def listen_to_server():
     global recv_buffer, player_id
     while True:
@@ -37,6 +39,7 @@ def listen_to_server():
             print("Server error:", e)
             break
 
+# prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
     global player_id, my_turn, game_started, revealed_identities, matched_cards
 
@@ -82,7 +85,7 @@ gameHeight = 800
 cardImgSize = 150
 cardColumns = 4
 cardRows = 4
-padding = 10 # space between cards
+padding = 10 
 leftRightMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
 topBotMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
 
@@ -98,8 +101,8 @@ bgImage = pygame.image.load('assets/background.png')
 bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
 bgImageRectangle = bgImage.get_rect()
 
-#  setup card images
-cards = list(range(8)) * 2  # same as server
+#  setup card images same as we have on the server
+cards = list(range(8)) * 2  
 
 card_image_map = {}
 for identity in range(8):
@@ -119,6 +122,7 @@ for i in range(len(cards)):
     rect.y = topBotMargin + ((cardImgSize + padding) * (i // cardRows))
     cardRects.append(rect)
 
+# prints to be deleted only for DEBUG
 print(cards)
 print(cardRects)
 
@@ -143,6 +147,7 @@ while gameLoop:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             gameLoop = False
+        #  screen resizing
         elif event.type == pygame.VIDEORESIZE:
             gameWidth = event.w
             gameHeight = event.h
@@ -153,6 +158,7 @@ while gameLoop:
             for i in range(len(cardRects)):
                 cardRects[i].x = leftRightMargin + ((cardImgSize + padding) * (i % cardColumns))
                 cardRects[i].y = topBotMargin + ((cardImgSize + padding) * (i // cardRows))
+        #  on click
         elif event.type == pygame.MOUSEBUTTONDOWN:
             with state_lock:
                 if not game_started:
@@ -161,7 +167,7 @@ while gameLoop:
                 if not my_turn:
                     print("Not your turn, can't flip.")
                     continue
-
+            # sending flip card messages to the server
             mouse_x, mouse_y = pygame.mouse.get_pos()
             for i, rect in enumerate(cardRects):
                 if rect.collidepoint(mouse_x, mouse_y):

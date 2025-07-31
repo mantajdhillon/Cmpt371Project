@@ -86,8 +86,8 @@ cardImgSize = 150
 cardColumns = 4
 cardRows = 4
 padding = 10 
-leftRightMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-topBotMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
+leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
+topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
 
 screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
 
@@ -118,8 +118,8 @@ back_image = pygame.transform.scale(back_image, (cardImgSize, cardImgSize))
 cardRects = []
 for i in range(len(cards)):
     rect = pygame.Rect(0, 0, cardImgSize, cardImgSize)
-    rect.x = leftRightMargin + ((cardImgSize + padding) * (i % cardColumns))
-    rect.y = topBotMargin + ((cardImgSize + padding) * (i // cardRows))
+    rect.x = leftMargin + ((cardImgSize + padding) * (i % cardColumns))
+    rect.y = topMargin + ((cardImgSize + padding) * (i // cardRows))
     cardRects.append(rect)
 
 # prints to be deleted only for DEBUG
@@ -153,11 +153,11 @@ while gameLoop:
             gameHeight = event.h
             screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
             bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
-            leftRightMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-            topBotMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
+            leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
+            topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
             for i in range(len(cardRects)):
-                cardRects[i].x = leftRightMargin + ((cardImgSize + padding) * (i % cardColumns))
-                cardRects[i].y = topBotMargin + ((cardImgSize + padding) * (i // cardRows))
+                cardRects[i].x = leftMargin + ((cardImgSize + padding) * (i % cardColumns))
+                cardRects[i].y = topMargin + ((cardImgSize + padding) * (i // cardRows))
         #  on click
         elif event.type == pygame.MOUSEBUTTONDOWN:
             with state_lock:

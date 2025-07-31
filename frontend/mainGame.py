@@ -33,7 +33,7 @@ def listen_to_server():
             while '\n' in recv_buffer:
                 line, recv_buffer = recv_buffer.split('\n', 1)
                 message = json.loads(line)
-                print(f"[DEBUG] Received from server: {message}")  # Debug print here
+                # print(f"[DEBUG] Received from server: {message}")  # Debug print here
                 handle_server_message(message)
         except Exception as e:
             print("Server error:", e)
@@ -123,8 +123,8 @@ for i in range(len(cards)):
     cardRects.append(rect)
 
 # prints to be deleted only for DEBUG
-print(cards)
-print(cardRects)
+# print(cards)
+# print(cardRects)
 
 gameLoop = True
 

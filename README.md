@@ -7,7 +7,7 @@ images from: https://opengameart.org/
 3 terminals:
 
 terminal 1 (run the server): 
-cd ... \Cmpt371Project python sample.py --players 2
+cd ... \Cmpt371Project python server.py --players 2
 
 terminal 2: (player 1):
 cd ... \Cmpt371Project\frontend python mainGame.py

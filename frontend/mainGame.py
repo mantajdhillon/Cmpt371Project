@@ -20,6 +20,8 @@ state_lock = threading.Lock()
 # save cards revealed and matched
 revealed_identities = [None] * 16  
 matched_cards = [False] * 16       
+max_players = 4
+scores = {i+1: 0 for i in range(max_players)} 
 
 # listening to server messages and responses, run on a thread
 def listen_to_server():
@@ -41,13 +43,14 @@ def listen_to_server():
 
 # prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
-    global player_id, my_turn, game_started, revealed_identities, matched_cards
+    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players
 
     msg_type = message.get("type")
     with state_lock:
         if msg_type == "WELCOME":
             player_id = message["player_id"]
-            print(f"Welcome! You are Player {player_id}")
+            max_players = message["max_players"]
+            print(f"Welcome! You are Player {player_id}, there are {max_players} players in total.")
         elif msg_type == "CARD_REVEALED":
             idx = message["card_index"]
             identity = message["identity"]
@@ -57,6 +60,10 @@ def handle_server_message(message):
             for idx in message["cards"]:
                 matched_cards[idx] = True
             print(f"Player {message['player_id']} found a match: {message['cards']}")
+            print(scores)
+            print(message["player_id"])
+            scores[str(message["player_id"])] += 1
+            print("test")
         elif msg_type == "HIDE_CARDS":
             for idx in message["cards"]:
                 revealed_identities[idx] = None
@@ -75,19 +82,22 @@ def handle_server_message(message):
             else:
                 my_turn = False
                 print(f"Player {message['player_id']}'s turn.")
+            scores = message["scores"]
+            print("Current scores:", scores)
 
 pygame.init()
-
+pygame.font.init()
 
 #  setup screen and it's parameters
 gameWidth = 1050
-gameHeight = 800
+gameHeight = 1000
 cardImgSize = 150
 cardColumns = 4
 cardRows = 4
 padding = 10 
+scoreSize = 150
 leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
+topMargin = (gameHeight - scoreSize - ((cardImgSize + padding) * cardRows)) // 2
 
 screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
 
@@ -121,6 +131,9 @@ for i in range(len(cards)):
     rect.x = leftMargin + ((cardImgSize + padding) * (i % cardColumns))
     rect.y = topMargin + ((cardImgSize + padding) * (i // cardRows))
     cardRects.append(rect)
+# Create player score text
+font = pygame.font.SysFont("Comic Sans MS", 30)
+score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for i in range(max_players)}
 
 # prints to be deleted only for DEBUG
 # print(cards)
@@ -143,6 +156,19 @@ while gameLoop:
                 screen.blit(card_image_map[identity], rect)
             else:
                 screen.blit(back_image, rect)
+        # update player scores
+        for i, score in scores.items():
+            score_text = f"Player {i}: {score}"
+            if int(i) == player_id:
+                score_text = f"Your Score: {score}"
+            #print(f"Updating score for Player {i}: {score_text}")
+            score_texts[int(i)] = font.render(score_text, True, (255, 255, 255))
+        # Draw player scores
+        for i, text in score_texts.items():
+            if i > max_players:
+                break
+            screen.blit(text, (10, 10 + int(i) * 40))
+       
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -154,7 +180,7 @@ while gameLoop:
             screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
             bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
             leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-            topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
+            topMargin = (gameHeight - scoreSize - ((cardImgSize + padding) * cardRows)) // 2
             for i in range(len(cardRects)):
                 cardRects[i].x = leftMargin + ((cardImgSize + padding) * (i % cardColumns))
                 cardRects[i].y = topMargin + ((cardImgSize + padding) * (i // cardRows))

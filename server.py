@@ -246,6 +246,8 @@ def handle_client_connection(client_conn, client_addr, player_id, expected_count
                         message.get('card_index'),
                         client_conn
                     )
+                elif message.get('type') == 'PLAY_AGAIN':
+                    start_game()
     except Exception as error:
         print(f"Oops, error with player {player_id}: {error}")
     finally:

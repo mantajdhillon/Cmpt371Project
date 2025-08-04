@@ -14,6 +14,7 @@ recv_buffer = ''
 player_id = None 
 my_turn = False
 game_started = False
+msg = ''
 
 state_lock = threading.Lock()
 
@@ -43,14 +44,14 @@ def listen_to_server():
 
 # prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
-    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players
+    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, msg
 
     msg_type = message.get("type")
     with state_lock:
         if msg_type == "WELCOME":
             player_id = message["player_id"]
             max_players = message["max_players"]
-            print(f"Welcome! You are Player {player_id}, there are {max_players} players in total.")
+            msg = (f"Welcome! You are Player {player_id}, there are {max_players} players in total.")
         elif msg_type == "CARD_REVEALED":
             idx = message["card_index"]
             identity = message["identity"]
@@ -59,7 +60,7 @@ def handle_server_message(message):
         elif msg_type == "MATCH_RESULT":
             for idx in message["cards"]:
                 matched_cards[idx] = True
-            print(f"Player {message['player_id']} found a match: {message['cards']}")
+            msg = (f"Player {message['player_id']} found a match: {message['cards']}")
             print(scores)
             print(message["player_id"])
             scores[str(message["player_id"])] += 1
@@ -70,18 +71,18 @@ def handle_server_message(message):
             print(f"Hiding cards: {message['cards']}")
         elif msg_type == "GAME_START":
             game_started = True
-            print("Game started!")
+            msg = ("Game started!")
         elif msg_type == "GAME_OVER":
-            print("Game over! Scores:", message["scores"])
+            msg = ("Game over! Scores:", message["scores"])
         elif msg_type == "ERROR":
             print("Error:", message["message"])
         elif msg_type == "YOUR_TURN":
             if message["player_id"] == player_id:
                 my_turn = True
-                print("It's your turn!")
+                msg = ("It's your turn!")
             else:
                 my_turn = False
-                print(f"Player {message['player_id']}'s turn.")
+                msg = (f"Player {message['player_id']}'s turn.")
             scores = message["scores"]
             print("Current scores:", scores)
 
@@ -168,7 +169,11 @@ while gameLoop:
             if i > max_players:
                 break
             screen.blit(text, (10, 10 + int(i) * 40))
-       
+        # Create message text
+        print(f"[DEBUG] rendering: {msg}")
+        msg_text = font.render(msg, True, (255, 255, 255))
+        # Draw message text
+        screen.blit(msg_text, ((gameWidth // 2) - (msg_text.get_width() // 2), gameHeight * 0.03))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:

@@ -52,7 +52,7 @@ def handle_server_message(message):
         if msg_type == "WELCOME":
             player_id = message["player_id"]
             max_players = message["max_players"]
-            msg = (f"Welcome! You are Player {player_id}, there are {max_players} players in total.")
+            print(f"Welcome! You are Player {player_id}, there are {max_players} players in total.")
         elif msg_type == "CARD_REVEALED":
             idx = message["card_index"]
             identity = message["identity"]
@@ -61,7 +61,7 @@ def handle_server_message(message):
         elif msg_type == "MATCH_RESULT":
             for idx in message["cards"]:
                 matched_cards[idx] = True
-            msg = (f"Player {message['player_id']} found a match: {message['cards']}")
+            print(f"Player {message['player_id']} found a match: {message['cards']}")
             print(scores)
             print(message["player_id"])
             scores[str(message["player_id"])] += 1
@@ -86,7 +86,7 @@ def handle_server_message(message):
         elif msg_type == "YOUR_TURN":
             if message["player_id"] == player_id:
                 my_turn = True
-                msg = ("It's your turn!")
+                print("It's your turn!")
             else:
                 my_turn = False
                 current_player = message["player_id"]
@@ -103,20 +103,19 @@ gameHeight = 1000
 cardImgSize = 150
 cardColumns = 4
 cardRows = 4
-padding = 10 
-scoreSize = 150
+padding = 10
 leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-topMargin = (gameHeight - scoreSize - ((cardImgSize + padding) * cardRows)) // 2
+topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
 
 screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
 
 #  setup the window and it's parameters
-pygame.display.set_caption('<INSERT GAME NAME, mainGame.py>')
-gameIcon = pygame.image.load('assets/icon.png')
+pygame.display.set_caption('Memory Match')
+gameIcon = pygame.image.load('resources/assets/icon.png')
 pygame.display.set_icon(gameIcon)
 
 #  setup background and it's parameters
-bgImage = pygame.image.load('assets/background.png')
+bgImage = pygame.image.load('resources/assets/background.png')
 bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
 bgImageRectangle = bgImage.get_rect()
 
@@ -125,12 +124,12 @@ cards = list(range(8)) * 2
 
 card_image_map = {}
 for identity in range(8):
-    image = pygame.image.load(f'images/cardArt/{identity}.png')
+    image = pygame.image.load(f'resources/images/cardArt/{identity}.png')
     image = pygame.transform.scale(image, (cardImgSize, cardImgSize))
     card_image_map[identity] = image
 
 # Placeholder image for face-down cards
-back_image = pygame.image.load('images/cardArt/back.png')
+back_image = pygame.image.load('resources/images/cardArt/back.png')
 back_image = pygame.transform.scale(back_image, (cardImgSize, cardImgSize))
 
 # Create card rects for placement
@@ -226,7 +225,7 @@ while gameLoop:
             screen = pygame.display.set_mode((gameWidth, gameHeight), pygame.RESIZABLE)
             bgImage = pygame.transform.scale(bgImage, (gameWidth, gameHeight))
             leftMargin = (gameWidth - ((cardImgSize + padding) * cardColumns)) // 2
-            topMargin = (gameHeight - scoreSize - ((cardImgSize + padding) * cardRows)) // 2
+            topMargin = (gameHeight - ((cardImgSize + padding) * cardRows)) // 2
             for i in range(len(cardRects)):
                 cardRects[i].x = leftMargin + ((cardImgSize + padding) * (i % cardColumns))
                 cardRects[i].y = topMargin + ((cardImgSize + padding) * (i // cardRows))

@@ -14,7 +14,8 @@ recv_buffer = ''
 player_id = None 
 my_turn = False
 game_started = False
-msg = ''
+game_over = False
+current_player = 1
 
 state_lock = threading.Lock()
 
@@ -44,7 +45,7 @@ def listen_to_server():
 
 # prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
-    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, msg
+    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, current_player, game_over
 
     msg_type = message.get("type")
     with state_lock:
@@ -71,9 +72,15 @@ def handle_server_message(message):
             print(f"Hiding cards: {message['cards']}")
         elif msg_type == "GAME_START":
             game_started = True
-            msg = ("Game started!")
+            game_over = False
+            revealed_identities = [None] * 16  
+            matched_cards = [False] * 16 
+            scores = {i+1: 0 for i in range(max_players)}
+            print("Game started!")
         elif msg_type == "GAME_OVER":
-            msg = ("Game over! Scores:", message["scores"])
+            print("Game over! Scores:", message["scores"])
+            game_over = True
+            scores = message["scores"]
         elif msg_type == "ERROR":
             print("Error:", message["message"])
         elif msg_type == "YOUR_TURN":
@@ -82,7 +89,8 @@ def handle_server_message(message):
                 msg = ("It's your turn!")
             else:
                 my_turn = False
-                msg = (f"Player {message['player_id']}'s turn.")
+                current_player = message["player_id"]
+                print(f"Player {message['player_id']}'s turn.")
             scores = message["scores"]
             print("Current scores:", scores)
 
@@ -136,6 +144,7 @@ for i in range(len(cards)):
 font = pygame.font.SysFont("Comic Sans MS", 30)
 score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for i in range(max_players)}
 
+top_text = font.render("Waiting for players", True, (255, 255, 255))
 # prints to be deleted only for DEBUG
 # print(cards)
 # print(cardRects)
@@ -143,7 +152,7 @@ score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for
 gameLoop = True
 
 threading.Thread(target=listen_to_server, daemon=True).start()
-
+play_again_rect = pygame.Rect(0, 0, 0, 0)
 
 while gameLoop:
     #  load background image
@@ -151,30 +160,62 @@ while gameLoop:
 
     with state_lock:
         # Draw cards based on current revealed/matched state
-        for i, rect in enumerate(cardRects):
-            if matched_cards[i] or revealed_identities[i] is not None:
-                identity = revealed_identities[i] if revealed_identities[i] is not None else 0
-                screen.blit(card_image_map[identity], rect)
-            else:
-                screen.blit(back_image, rect)
-        # update player scores
-        for i, score in scores.items():
-            score_text = f"Player {i}: {score}"
-            if int(i) == player_id:
-                score_text = f"Your Score: {score}"
-            #print(f"Updating score for Player {i}: {score_text}")
-            score_texts[int(i)] = font.render(score_text, True, (255, 255, 255))
-        # Draw player scores
-        for i, text in score_texts.items():
-            if i > max_players:
-                break
-            screen.blit(text, (10, 10 + int(i) * 40))
-        # Create message text
-        print(f"[DEBUG] rendering: {msg}")
-        msg_text = font.render(msg, True, (255, 255, 255))
-        # Draw message text
-        screen.blit(msg_text, ((gameWidth // 2) - (msg_text.get_width() // 2), gameHeight * 0.03))
+        if game_over:
+            top_text = font.render("Game Over! Here's the results!", True, (255, 255, 255))
+            screen.blit(top_text, (gameWidth // 2 - top_text.get_width() // 2, 10))
 
+            # Display leader board
+            sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+            leader_board = []
+            for i, (player, score) in enumerate(sorted_scores):
+                score_text = f"Player {player}: {score}"
+                if int(player) == player_id:
+                    score_text = f"Your Score: {score}"
+                leader_board.append(font.render(score_text, True, (255, 255, 255)))
+            for i, text in enumerate(leader_board):
+                if i >= max_players:
+                    break
+                x = gameWidth // 2 - text.get_width() // 2
+                y = 50 + i * 40
+                screen.blit(text, (x, y))
+            
+            # Display play again option
+            play_again_text = font.render("Click to play again", True, (255, 255, 255))
+            play_again_size = play_again_text.get_size()
+            play_again_bg = pygame.Surface((play_again_size[0] + 20, play_again_size[1] + 20))
+            play_again_bg.fill((0, 0, 0))
+            play_again_bg.set_alpha(150)
+            play_again_rect = play_again_bg.get_rect(center=(gameWidth // 2, gameHeight // 2 + 100))
+            screen.blit(play_again_bg, play_again_rect)
+            
+            screen.blit(play_again_text, (play_again_rect.x + 10, play_again_rect.y + 10))
+        else:
+            for i, rect in enumerate(cardRects):
+                if matched_cards[i] or revealed_identities[i] is not None:
+                    identity = revealed_identities[i] if revealed_identities[i] is not None else 0
+                    screen.blit(card_image_map[identity], rect)
+                else:
+                    screen.blit(back_image, rect)
+            # update player scores
+            for i, score in scores.items():
+                score_text = f"Player {i}: {score}"
+                if int(i) == player_id:
+                    score_text = f"Your Score: {score}"
+                #print(f"Updating score for Player {i}: {score_text}")
+                score_texts[int(i)] = font.render(score_text, True, (255, 255, 255))
+            # Draw player scores
+            for i, text in score_texts.items():
+                if i > max_players:
+                    break
+                screen.blit(text, (10, 10 + int(i) * 40))
+            if not game_started:
+                top_text = font.render("Waiting for players", True, (255, 255, 255))
+            else:
+                if my_turn:
+                    top_text = font.render("Your turn! Click to flip a card.", True, (255, 255, 255))
+                else:
+                    top_text = font.render(f"Player {current_player}'s turn: Waiting for your turn...", True, (255, 255, 255))
+    screen.blit(top_text, (gameWidth // 2 - top_text.get_width() // 2, 10))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             gameLoop = False
@@ -197,6 +238,11 @@ while gameLoop:
                     continue
                 if not my_turn:
                     print("Not your turn, can't flip.")
+                    continue
+                if game_over:
+                    if play_again_rect.collidepoint(event.pos):
+                        message = {"type": "PLAY_AGAIN"}
+                        client_socket.sendall((json.dumps(message) + '\n').encode())
                     continue
             # sending flip card messages to the server
             mouse_x, mouse_y = pygame.mouse.get_pos()

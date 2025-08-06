@@ -103,7 +103,7 @@ def start_game():
         first_flipped_card = None
         is_game_started = True
 
-    # Let all players know we've starte3d
+    # Let all players know we've started
     broadcast_message({
         "type": "GAME_START",
         "num_cards": len(card_deck),

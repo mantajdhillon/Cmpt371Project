@@ -1,6 +1,4 @@
 import pygame
-import os
-import random
 import socket
 import threading
 import json
@@ -16,6 +14,7 @@ my_turn = False
 game_started = False
 game_over = False
 current_player = 1
+game_full = False
 
 state_lock = threading.Lock()
 
@@ -45,7 +44,7 @@ def listen_to_server():
 
 # prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
-    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, current_player, game_over
+    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, current_player, game_over, game_full
 
     msg_type = message.get("type")
     with state_lock:
@@ -83,6 +82,8 @@ def handle_server_message(message):
             scores = message["scores"]
         elif msg_type == "ERROR":
             print("Error:", message["message"])
+            if message["message"] == "Sorry, game is full.":
+                game_full = True
         elif msg_type == "YOUR_TURN":
             if message["player_id"] == player_id:
                 my_turn = True
@@ -143,7 +144,7 @@ for i in range(len(cards)):
 font = pygame.font.SysFont("Comic Sans MS", 30)
 score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for i in range(max_players)}
 
-top_text = font.render("Waiting for players", True, (255, 255, 255))
+# top_text = font.render("Waiting for players", True, (255, 255, 255))
 # prints to be deleted only for DEBUG
 # print(cards)
 # print(cardRects)
@@ -207,8 +208,10 @@ while gameLoop:
                 if i > max_players:
                     break
                 screen.blit(text, (10, 10 + int(i) * 40))
-            if not game_started:
+            if not game_started and not game_full:
                 top_text = font.render("Waiting for players", True, (255, 255, 255))
+            elif game_full:
+                top_text = font.render("Game is full. Please retry later.", True, (255, 255, 255))
             else:
                 if my_turn:
                     top_text = font.render("Your turn! Click to flip a card.", True, (255, 255, 255))

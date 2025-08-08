@@ -6,7 +6,7 @@ import time
 import argparse
 
 # --------------------------------------------------------------------------------------------------------------------------------
-#  Server Configuration  
+#  Server Configuration
 # ------------------------------------------------------------------------------------------------------------------------------
 # Host and port where the server will listen for incoming connections.
 SERVER_HOST = '0.0.0.0'  # Listen on all network interfaces
@@ -15,7 +15,7 @@ MIN_PLAYERS = 2          # Minimum number of players required to start
 MAX_PLAYERS = 4          # Maximum players allowed in a single game
 
 # -------------------------------------------------------------------------------------------------------------------------------
-#  Tracking Connections   
+#  Tracking Connections
 # ---------------------------------------------------------------------------------------------------------------------------------
 # We'll keep a list of all connected clients (connection, address, player_id)
 connected_clients = []
@@ -37,20 +37,20 @@ def parse_args():
     return parser.parse_args()
 
 # ---------------------------------------------------------------------------------------------------------------------
-#  Game State (protected by a lock)    
+#  Game State (protected by a lock)
 # ---------------------------------------------------------------------------------------------------------------------
 card_deck = []            # Our shuffled pairs of cards
 faceup_cards = []         # Which cards are currently faceup
 matched_cards = []        # Which cards have been permanently matched
 player_scores = {}        # How many pairs each player has found
-current_player_index = 0  # Whose turn it is 
+current_player_index = 0  # Whose turn it is
 first_flipped_card = None # Remember the first flip to compare it on the second flip
-is_game_started = False  
+is_game_started = False
 per_card_locks = []       # A lock for each individual card to prevent race conditions
 game_state_lock = threading.Lock()
 
 # -------------------------------------------------------------------------------------------------------------------
-#  Networking Helper Functions   
+#  Networking Helper Functions
 # ------------------------------------------------------------------------------------------------------------------
 
 def broadcast_message(message):
@@ -75,7 +75,7 @@ def send_message_to_client(client_conn, message):
         pass
 
 # ----------------------------------------------------------------------------------------------------------------------------
-#  Starting the Game                
+#  Starting the Game
 # -----------------------------------------------------------------------------------------------------------------------------
 
 def start_game():
@@ -97,7 +97,7 @@ def start_game():
         # Give each card its own lock to avoid race conditions on flips
         per_card_locks = [threading.Lock() for _ in card_deck]
         # Everyone starts with zero points
-        player_scores = {pid: 0 for _, _, pid in connected_clients}
+        player_scores = {int(pid): 0 for _, _, pid in connected_clients}
         # Randomly pick who goes first
         current_player_index = random.randrange(len(connected_clients))
         first_flipped_card = None
@@ -107,31 +107,34 @@ def start_game():
     broadcast_message({
         "type": "GAME_START",
         "num_cards": len(card_deck),
-        "players": [pid for _, _, pid in connected_clients]
+        "players": [int(pid) for _, _, pid in connected_clients],
+        "scores": player_scores
     })
     send_turn_notification()
 
 # --------------------------------------------------------------------------------------------------------------------
-#  Turn Notification                
+#  Turn Notification
 # ---------------------------------------------------------------------------------------------------------------------
 
 def send_turn_notification():
     """
     Tell everyone whose turn it is now.
     """
-    print("[DEBUG] send_turn_notification() called.") 
-
+    print("[DEBUG] send_turn_notification() called.")
+    global current_player_index
+    
     with game_state_lock:
-        print("[DEBUG] send_turn_notifications() withGame stateLOCK") 
+        print("[DEBUG] send_turn_notifications() withGame stateLOCK")
         player_id = connected_clients[current_player_index][2]
     broadcast_message({
         "type": "YOUR_TURN",
         "player_id": player_id,
-        "scores": player_scores
+        "scores": player_scores,
+        "current_player": current_player_index + 1
     })
 
 # -------------------------------------------------------------------------------------------------------------------
-#  Handling a card Flip             
+#  Handling a card Flip
 # -------------------------------------------------------------------------------------------------------------------
 
 def process_flip_request(player_id, card_index, client_conn):
@@ -181,7 +184,6 @@ def process_flip_request(player_id, card_index, client_conn):
                     "type": "MATCH_RESULT",
                     "player_id": player_id,
                     "cards": [prev_index, card_index],
-                    "score": player_scores[player_id]
                 })
             else:
                 # Let everyone see the mismatch for a moment
@@ -210,7 +212,7 @@ def process_flip_request(player_id, card_index, client_conn):
         send_turn_notification()
 
 # -----------------------------------------------------------------------------------------------------
-#  New Client Handler                
+#  New Client Handler
 # ----------------------------------------------------------------------------------------------------
 
 def handle_client_connection(client_conn, client_addr, player_id, expected_count):
@@ -222,11 +224,13 @@ def handle_client_connection(client_conn, client_addr, player_id, expected_count
     """
     global is_game_started
     print(f"Player {player_id} connected from {client_addr}")
-    send_message_to_client(client_conn, {"type": "WELCOME", "player_id": player_id, "max_players": expected_count})
+    player_index = connected_clients.index((client_conn, client_addr, player_id)) + 1
+    send_message_to_client(client_conn, {"type": "WELCOME", "player_index": player_index, "player_id": player_id, "max_players": expected_count})
 
     # If we've reached the expected player count, kick off the game
     with clients_lock:
         if len(connected_clients) == expected_count and not is_game_started:
+            print(f"All {expected_count} players connected, starting the game!")
             start_game()
 
     recv_buffer = ""
@@ -247,18 +251,44 @@ def handle_client_connection(client_conn, client_addr, player_id, expected_count
                         client_conn
                     )
                 elif message.get('type') == 'PLAY_AGAIN':
-                    start_game()
+                    print(len(connected_clients), expected_count)
+                    # handling disconnect at end screen while other player clicks play again
+                    if len(connected_clients) != expected_count:
+                        continue # waiting for disconnect to be handled
+                    else:
+                        start_game()
     except Exception as error:
         print(f"Oops, error with player {player_id}: {error}")
     finally:
-        print(f"Player {player_id} went away.")
-        with clients_lock:
-            # Remove them from our list
-            connected_clients[:] = [c for c in connected_clients if c[2] != player_id]
-        client_conn.close()
+        handle_client_disconnection(client_conn, player_id, expected_count)
 
+# ----------------------------------------------------------------------------------------------------
+#  Handle Client Disconnection
+# ----------------------------------------------------------------------------------------------------
+def handle_client_disconnection(client_conn, player_id, expected_count):
+    """
+    When someone disconnects:
+      - Remove them from the list of connected clients
+      - Tell every other client they left
+      - Wait for new player(s) to join and restart game
+    """
+    print(f"Player {player_id} went away.")
+    with clients_lock:
+        # Remove them from our list
+        connected_clients[:] = [c for c in connected_clients if c[2] != player_id]
+    client_conn.close()
+    # Let every client know who left
+    broadcast_message({"type": "DISCONNECT", "player_id": player_id, })
+    time.sleep(3)
+    # Waiting for new players to join
+    while len(connected_clients) < expected_count:
+        time.sleep(1)
+    # Enough players have joined, restart game
+    broadcast_message({"type": "GAME_FULL"})
+    start_game()
+    
 # --------------------------------------------------------------------------------------
-#  Main Server Loop                  
+#  Main Server Loop
 # -----------------------------------------------------------------------------------------
 
 def main():

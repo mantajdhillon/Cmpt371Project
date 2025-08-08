@@ -45,7 +45,6 @@ def listen_to_server():
             while '\n' in recv_buffer:
                 line, recv_buffer = recv_buffer.split('\n', 1)
                 message = json.loads(line)
-                # print(f"[DEBUG] Received from server: {message}")  # Debug print here
                 handle_server_message(message)
         except Exception as e:
             print("Server error:", e)
@@ -66,18 +65,13 @@ def handle_server_message(message):
             idx = message["card_index"]
             identity = message["identity"]
             revealed_identities[idx] = identity
-            print(f"Card revealed: index={idx}, identity={identity}")
         elif msg_type == "MATCH_RESULT":
             for idx in message["cards"]:
                 matched_cards[idx] = True
-            print(f"Player {message['player_id']} found a match: {message['cards']}")
-            print(scores)
-            print(message["player_id"])
             scores[str(message["player_id"])] += 1
         elif msg_type == "HIDE_CARDS":
             for idx in message["cards"]:
                 revealed_identities[idx] = None
-            print(f"Hiding cards: {message['cards']}")
         elif msg_type == "GAME_START":
             game_started = True
             game_over = False
@@ -85,9 +79,7 @@ def handle_server_message(message):
             matched_cards = [False] * 16
             scores = message["scores"]
             pid_list = message["players"]
-            print("Game started!")
         elif msg_type == "GAME_OVER":
-            print("Game over! Scores:", message["scores"])
             game_over = True
             scores = message["scores"]
         elif msg_type == "ERROR":
@@ -97,13 +89,10 @@ def handle_server_message(message):
         elif msg_type == "YOUR_TURN":
             if message["player_id"] == player_id:
                 my_turn = True
-                print("It's your turn!")
             else:
                 my_turn = False
                 current_player = message["current_player"]
-                print(f"Player {current_player}'s turn. (player_id: {message['player_id']})")
             scores = message["scores"]
-            print("Current scores:", scores)
         elif msg_type == "DISCONNECT":
             player_disconnected = True, message["player_id"]
             game_full = False
@@ -164,11 +153,6 @@ for i in range(len(cards)):
 font = pygame.font.SysFont("Comic Sans MS", 30)
 score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for i in range(max_players)}
 
-# top_text = font.render("Waiting for players", True, (255, 255, 255))
-# prints to be deleted only for DEBUG
-# print(cards)
-# print(cardRects)
-
 threading.Thread(target=listen_to_server, daemon=True).start()
 play_again_rect = pygame.Rect(0, 0, 0, 0)
 
@@ -222,10 +206,8 @@ while running:
                 pid = int(pid)
                 player_idx = pid_list.index(pid) + 1
                 score_text = f"Player {player_idx}: {score}"
-                # print(f"Pid: {pid}, Player ID: {player_id}, Score: {score}")
                 if pid == player_id:
                     score_text = f"Your Score: {score}"
-                #print(f"Updating score for Player {i}: {score_text}")
                 score_texts[player_idx] = font.render(score_text, True, (255, 255, 255))
             # Draw player scores
             for i, text in score_texts.items():
@@ -263,10 +245,8 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             with state_lock:
                 if not game_started:
-                    print("Game not started yet. Click ignored.")
                     continue
                 if not my_turn and not game_over:
-                    print("Not your turn, can't flip.")
                     continue
                 if game_over:
                     if play_again_rect.collidepoint(event.pos):

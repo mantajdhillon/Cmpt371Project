@@ -57,12 +57,8 @@ running = True
 
 def broadcast_message(message):
     global clients_lock
-    print("[DEBUG] broadcast_message() called with message:") 
-    print(message)
     with clients_lock:
-        print(f"[DEBUG] Currently {len(connected_clients)} connected clients")
         for client_conn, _, _ in connected_clients:
-            print("[DEBUG] Sending message to a client")
             send_message_to_client(client_conn, message)
 
 
@@ -91,7 +87,6 @@ def send_message_to_client(client_conn, message):
 # -----------------------------------------------------------------------------------------------------------------------------
 
 def start_game():
-    print("[DEBUG] start_game() called.") 
     """
     Shuffle the cards, set up locks, pick who goes first, and let everyone know the game is on!
     """
@@ -131,11 +126,9 @@ def send_turn_notification():
     """
     Tell everyone whose turn it is now.
     """
-    print("[DEBUG] send_turn_notification() called.")
     global current_player_index
     
     with game_state_lock:
-        print("[DEBUG] send_turn_notifications() withGame stateLOCK")
         player_id = connected_clients[current_player_index][2]
     broadcast_message({
         "type": "YOUR_TURN",
@@ -262,7 +255,6 @@ def handle_client_connection(client_conn, client_addr, player_id, expected_count
                         client_conn
                     )
                 elif message.get('type') == 'PLAY_AGAIN':
-                    print(len(connected_clients), expected_count)
                     # handling disconnect at end screen while other player clicks play again
                     if len(connected_clients) != expected_count:
                         continue # waiting for disconnect to be handled
@@ -283,7 +275,7 @@ def handle_client_disconnection(client_conn, player_id, expected_count):
       - Tell every other client they left
       - Wait for new player(s) to join and restart game
     """
-    print(f"Player {player_id} went away.")
+    print(f"Player {player_id} disconnected.")
     with clients_lock:
         # Remove them from our list
         connected_clients[:] = [c for c in connected_clients if c[2] != player_id]

@@ -3,16 +3,19 @@ Group Project for CMPT 371 @ SFU
 
 images from: https://opengameart.org/ 
 
+For the purposes of testing we change the "SERVER_HOST" variable at the top of client.py to determine the host.
+To close the server use "CTRL+c" in the terminal that it is running in.
 
-3 terminals:
+3 terminals (for server and 2 players):
 
-terminal 1 (run the server): 
-cd ... \Cmpt371Project python sample.py --players 2
+Terminal 1 (run the server): 
+cd ... \Cmpt371Project> `python server.py --players 2`
 
-terminal 2: (player 1):
-cd ... \Cmpt371Project\frontend python mainGame.py
+Terminal 2: (player 1):
+cd ... \Cmpt371Project> `python client.py`
 
-terminal 3: (player 2):
-cd ... \Cmpt371Project\frontend python mainGame.py
+Terminal 3: (player 2):
+cd ... \Cmpt371Project> `python client.py`
 
-now both games should be running and the terminal has messages as to whos turn it is
+For 3 or 4 players: run server with `python server.py --players n` (*n* = 3 or 4)
+and run clients respective to chosen *n*.

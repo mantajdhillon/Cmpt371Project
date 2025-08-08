@@ -26,6 +26,7 @@ matched_cards = [False] * 16
 max_players = 4
 scores = {} # {pid: score}
 
+
 # listening to server messages and responses, run on a thread
 def listen_to_server():
     global recv_buffer, player_id
@@ -66,8 +67,7 @@ def handle_server_message(message):
             print(f"Player {message['player_id']} found a match: {message['cards']}")
             print(scores)
             print(message["player_id"])
-            # scores[str(message["player_id"])] += 1
-            print("test")
+            scores[str(message["player_id"])] += 1
         elif msg_type == "HIDE_CARDS":
             for idx in message["cards"]:
                 revealed_identities[idx] = None

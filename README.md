@@ -3,6 +3,8 @@ Group Project for CMPT 371 @ SFU
 
 images from: https://opengameart.org/ 
 
+For the purposes of testing we change the "SERVER_HOST" variable at the top of client.py to determine the host.
+To close the server use "CTRL+c" in the terminal that it is running in.
 
 3 terminals (for server and 2 players):
 

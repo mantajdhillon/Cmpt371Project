@@ -4,6 +4,7 @@ import json
 import random
 import time
 import argparse
+import signal
 
 # --------------------------------------------------------------------------------------------------------------------------------
 #  Server Configuration
@@ -48,6 +49,7 @@ first_flipped_card = None # Remember the first flip to compare it on the second 
 is_game_started = False
 per_card_locks = []       # A lock for each individual card to prevent race conditions
 game_state_lock = threading.Lock()
+running = True
 
 # -------------------------------------------------------------------------------------------------------------------
 #  Networking Helper Functions
@@ -63,6 +65,16 @@ def broadcast_message(message):
             print("[DEBUG] Sending message to a client")
             send_message_to_client(client_conn, message)
 
+
+# -------------------------------------------------------------------------------------------------------------------
+#  CTRL + c handler
+# ------------------------------------------------------------------------------------------------------------------
+
+def signal_handler(sig, frame):
+    global running
+    running = False
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def send_message_to_client(client_conn, message):
     """
@@ -106,7 +118,6 @@ def start_game():
     # Let all players know we've started
     broadcast_message({
         "type": "GAME_START",
-        "num_cards": len(card_deck),
         "players": [int(pid) for _, _, pid in connected_clients],
         "scores": player_scores
     })
@@ -292,6 +303,7 @@ def handle_client_disconnection(client_conn, player_id, expected_count):
 # -----------------------------------------------------------------------------------------
 
 def main():
+    global running
     # Figure out how many players we expect
     args = parse_args()
     expected_players = args.players
@@ -302,14 +314,18 @@ def main():
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((SERVER_HOST, SERVER_PORT))
         server_socket.listen()
+        server_socket.settimeout(1)  # Non-blocking accept
         print(
             f"Ready on {SERVER_HOST}:{SERVER_PORT}, "
             f"waiting for {expected_players} players..."
         )
 
         # Keep accepting new players
-        while True:
-            client_conn, client_addr = server_socket.accept()
+        while running:
+            try:
+                client_conn, client_addr = server_socket.accept()
+            except socket.timeout:
+                continue
 
             with clients_lock:
                 if len(connected_clients) >= expected_players:

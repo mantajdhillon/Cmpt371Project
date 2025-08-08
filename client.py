@@ -2,12 +2,14 @@ import pygame
 import socket
 import threading
 import json
+import sys
 
 SERVER_HOST = 'localhost'
 SERVER_PORT = 12345
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((SERVER_HOST, SERVER_PORT))
+client_socket.settimeout(1)  # Non-blocking recv
 recv_buffer = ''
 player_id = None
 my_turn = False
@@ -17,6 +19,7 @@ current_player = 1                      # who's turn it is: player 1 to 4
 game_full = False
 player_disconnected = (False, None)     # (disconnected, player_id)
 pid_list = []
+running = True
 
 state_lock = threading.Lock()
 
@@ -29,10 +32,13 @@ scores = {} # {pid: score}
 
 # listening to server messages and responses, run on a thread
 def listen_to_server():
-    global recv_buffer, player_id
-    while True:
+    global recv_buffer, player_id, running
+    while running:
         try:
-            data = client_socket.recv(4096).decode()
+            try:
+                data = client_socket.recv(4096).decode()
+            except socket.timeout:
+                continue
             if not data:
                 break
             recv_buffer += data
@@ -47,7 +53,7 @@ def listen_to_server():
 
 # prints out messages from the server and changes variables based on player and game state
 def handle_server_message(message):
-    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, current_player, game_over, game_full, player_disconnected, pid_list
+    global player_id, my_turn, game_started, revealed_identities, matched_cards, scores, max_players, current_player, game_over, game_full, player_disconnected, pid_list, running, client_socket
 
     msg_type = message.get("type")
     with state_lock:
@@ -104,6 +110,10 @@ def handle_server_message(message):
         elif msg_type == "GAME_FULL":
             game_full = True
             player_disconnected = (False, None)
+        elif msg_type == "SHUTDOWN":
+            print("Server is shutting down...")
+            running = False
+            client_socket.close()
 
 pygame.init()
 pygame.font.init()
@@ -159,12 +169,10 @@ score_texts = {i+1: font.render(f"Player {i + 1}: 0", True, (255, 255, 255)) for
 # print(cards)
 # print(cardRects)
 
-gameLoop = True
-
 threading.Thread(target=listen_to_server, daemon=True).start()
 play_again_rect = pygame.Rect(0, 0, 0, 0)
 
-while gameLoop:
+while running:
     #  load background image
     screen.blit(bgImage, bgImageRectangle)
 
@@ -239,7 +247,7 @@ while gameLoop:
     screen.blit(top_text, (gameWidth // 2 - top_text.get_width() // 2, 10))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            gameLoop = False
+            running = False
         #  screen resizing
         elif event.type == pygame.VIDEORESIZE:
             gameWidth = event.w

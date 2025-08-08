@@ -348,6 +348,8 @@ def main():
                 daemon=True
             )
             thread.start()
+        broadcast_message({"type": "SHUTDOWN", "message": "Server is shutting down."})
+        time.sleep(1) # A "hack" to allow all clients to receive the shutdown message
 
 if __name__ == '__main__':
     main()
